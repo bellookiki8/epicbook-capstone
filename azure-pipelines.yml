@@ -76,7 +76,8 @@ stages:
         sshKeySecureFile: epicbook_key
 
     - script: |
-        ssh -i $(Agent.TempDirectory)/epicbook_key \
+        chmod 600 $(Agent.HomeDirectory)/.ssh/epicbook_key
+        ssh -i $(Agent.HomeDirectory)/.ssh/epicbook_key \
             -o StrictHostKeyChecking=no \
             $(VM_USER)@$(VM_HOST) \
             "cd ~/epicbook-capstone && \
