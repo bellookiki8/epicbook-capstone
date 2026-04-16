@@ -1,0 +1,87 @@
+trigger:
+  branches:
+    include:
+      - main
+
+variables:
+  ACR_NAME: epicbookregistry.azurecr.io
+  APP_IMAGE: epicbookregistry.azurecr.io/epicbook-app
+  PROXY_IMAGE: epicbookregistry.azurecr.io/epicbook-proxy
+  VM_USER: azureuser
+  VM_HOST: 52.188.23.59
+
+stages:
+
+# =============================================================
+# Stage 1 — Build & Push images to ACR
+# =============================================================
+- stage: Build
+  displayName: Build and push images
+  jobs:
+  - job: BuildImages
+    displayName: Build app and proxy images
+    pool:
+      vmImage: ubuntu-latest
+    steps:
+
+    - task: Docker@2
+      displayName: Login to ACR
+      inputs:
+        command: login
+        containerRegistry: epicbook-acr
+
+    - task: Docker@2
+      displayName: Build and push app image
+      inputs:
+        command: buildAndPush
+        repository: epicbook-app
+        dockerfile: app/Dockerfile
+        containerRegistry: epicbook-acr
+        buildContext: app
+        tags: |
+          $(Build.BuildId)
+          latest
+
+    - task: Docker@2
+      displayName: Build and push proxy image
+      inputs:
+        command: buildAndPush
+        repository: epicbook-proxy
+        dockerfile: proxy/Dockerfile
+        containerRegistry: epicbook-acr
+        buildContext: proxy
+        tags: |
+          $(Build.BuildId)
+          latest
+
+# =============================================================
+# Stage 2 — Deploy to VM
+# =============================================================
+- stage: Deploy
+  displayName: Deploy to Azure VM
+  dependsOn: Build
+  condition: succeeded()
+  jobs:
+  - job: DeployToVM
+    displayName: Pull and restart stack on VM
+    pool:
+      vmImage: ubuntu-latest
+    steps:
+
+    - task: InstallSSHKey@0
+      displayName: Install SSH key
+      inputs:
+        knownHostsEntry: $(VM_KNOWN_HOST)
+        sshPublicKey: $(VM_SSH_PUBLIC_KEY)
+        sshKeySecureFile: epicbook_key
+
+    - script: |
+        ssh -i $(Agent.TempDirectory)/epicbook_key \
+            -o StrictHostKeyChecking=no \
+            $(VM_USER)@$(VM_HOST) \
+            "cd ~/epicbook-capstone && \
+             docker login $(ACR_NAME) -u $(ACR_USERNAME) -p $(ACR_PASSWORD) && \
+             docker compose pull && \
+             docker compose up -d && \
+             docker image prune -f"
+      displayName: Deploy latest images to VM
