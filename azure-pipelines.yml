@@ -61,11 +61,11 @@ stages:
     - script: |
         echo "Setting up SSH key..."
         mkdir -p ~/.ssh
-        echo "$(VM_SSH_PRIVATE_KEY)" > ~/.ssh/epicbook_key
+        echo "$(VM_SSH_PRIVATE_KEY)" | base64 -d > ~/.ssh/epicbook_key
         chmod 600 ~/.ssh/epicbook_key
         echo "$(VM_KNOWN_HOST)" >> ~/.ssh/known_hosts
         echo "SSH key installed successfully"
-        ls -la ~/.ssh/
+        file ~/.ssh/epicbook_key
       displayName: Setup SSH key
 
     - script: |
