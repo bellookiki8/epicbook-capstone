@@ -58,26 +58,18 @@ stages:
       vmImage: ubuntu-latest
     steps:
 
-    - task: InstallSSHKey@0
-      displayName: Install SSH key
-      inputs:
-        knownHostsEntry: $(VM_KNOWN_HOST)
-        sshPublicKey: $(VM_SSH_PUBLIC_KEY)
-        sshKeySecureFile: epicbook_key
+    - script: |
+        echo "Setting up SSH key..."
+        mkdir -p ~/.ssh
+        echo "$(VM_SSH_PRIVATE_KEY)" > ~/.ssh/epicbook_key
+        chmod 600 ~/.ssh/epicbook_key
+        echo "$(VM_KNOWN_HOST)" >> ~/.ssh/known_hosts
+        echo "SSH key installed successfully"
+        ls -la ~/.ssh/
+      displayName: Setup SSH key
 
     - script: |
-        echo "Looking for SSH key..."
-        find / -name "epicbook_key" 2>/dev/null
-        echo "HOME is: $HOME"
-        ls -la $HOME/.ssh/ 2>/dev/null || echo "No .ssh in HOME"
-        ls -la /home/vsts/.ssh/ 2>/dev/null || echo "No .ssh in /home/vsts"
-      displayName: Find SSH key location
-
-    - script: |
-        KEY=$(find / -name "epicbook_key" 2>/dev/null | head -1)
-        echo "Using key: $KEY"
-        chmod 600 "$KEY"
-        ssh -i "$KEY" \
+        ssh -i ~/.ssh/epicbook_key \
             -o StrictHostKeyChecking=no \
             $(VM_USER)@$(VM_HOST) \
             "cd ~/epicbook-capstone && \
