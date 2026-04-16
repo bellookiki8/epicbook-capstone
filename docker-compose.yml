@@ -1,0 +1,77 @@
+services:
+
+  db:
+    image: mysql:8.0
+    container_name: epicbook-db
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+    volumes:
+      - db_data:/var/lib/mysql
+      - ./app/db/BuyTheBook_Schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
+      - ./app/db/author_seed.sql:/docker-entrypoint-initdb.d/02-author.sql
+      - ./app/db/books_seed.sql:/docker-entrypoint-initdb.d/03-books.sql
+    networks:
+      - private-net
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-p${MYSQL_ROOT_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  app:
+    build:
+      context: ./app
+      dockerfile: Dockerfile
+    container_name: epicbook-app
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      NODE_ENV: ${NODE_ENV}
+      PORT: ${PORT}
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - public-net
+      - private-net
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  proxy:
+    build:
+      context: ./proxy
+      dockerfile: Dockerfile
+    container_name: epicbook-proxy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      app:
+        condition: service_healthy
+    networks:
+      - public-net
+    volumes:
+      - ./logs/nginx:/var/log/nginx
+    healthcheck:
+      test: ["CMD", "nginx", "-t"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  db_data:
+
+networks:
+  public-net:
+    driver: bridge
+  private-net:
+    driver: bridge

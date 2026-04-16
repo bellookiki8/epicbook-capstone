@@ -1,0 +1,5 @@
+.env
+logs/
+backups/*.sql
+node_modules/
+*.log

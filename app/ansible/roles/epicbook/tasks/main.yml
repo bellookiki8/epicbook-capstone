@@ -1,0 +1,59 @@
+---
+- name: Create app directory
+  file:
+    path: "{{ app_dir }}"
+    state: directory
+    owner: azureuser
+    group: azureuser
+    mode: '0755'
+  become: yes
+
+- name: Clone EpicBook repository
+  git:
+    repo: https://github.com/bellookiki8/theepicbook.git
+    dest: "{{ app_dir }}"
+    version: main
+    force: yes
+  become: yes
+
+- name: Deploy environment config
+  template:
+    src: env.j2
+    dest: "{{ app_dir }}/.env"
+    owner: azureuser
+    group: azureuser
+  become: yes
+
+- name: Install npm dependencies
+  npm:
+    path: "{{ app_dir }}"
+  become: yes
+
+- name: Install PM2 globally
+  npm:
+    name: pm2
+    global: yes
+  become: yes
+
+- name: Stop existing PM2 app if running
+  shell: pm2 delete epicbook || true
+  become: yes
+
+- name: Start app with PM2
+  shell: pm2 start {{ app_dir }}/server.js --name epicbook
+  become: yes
+
+- name: Save PM2 process list
+  shell: pm2 save
+  become: yes
+
+- name: Setup PM2 startup script
+  shell: pm2 startup systemd -u root --hp /root
+  become: yes
+
+- name: Enable PM2 service
+  systemd:
+    name: pm2-root
+    enabled: yes
+    state: started
+  become: yes

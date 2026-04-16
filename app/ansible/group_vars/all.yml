@@ -1,0 +1,6 @@
+mysql_host: epicbook-mysql-mkmn4b.mysql.database.azure.com
+mysql_user: epicadmin
+mysql_password: EpicBook123!
+mysql_database: epicbook
+app_port: 3000
+app_dir: /opt/epicbook

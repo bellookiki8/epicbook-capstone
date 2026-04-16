@@ -1,0 +1,35 @@
+---
+- name: Install Nginx
+  apt:
+    name: nginx
+    state: present
+  become: yes
+
+- name: Deploy Nginx reverse proxy config
+  template:
+    src: epicbook.conf.j2
+    dest: /etc/nginx/sites-available/epicbook
+  become: yes
+  notify: Restart Nginx
+
+- name: Enable site
+  file:
+    src: /etc/nginx/sites-available/epicbook
+    dest: /etc/nginx/sites-enabled/epicbook
+    state: link
+  become: yes
+  notify: Restart Nginx
+
+- name: Remove default site
+  file:
+    path: /etc/nginx/sites-enabled/default
+    state: absent
+  become: yes
+  notify: Restart Nginx
+
+- name: Ensure Nginx is started and enabled
+  service:
+    name: nginx
+    state: started
+    enabled: yes
+  become: yes

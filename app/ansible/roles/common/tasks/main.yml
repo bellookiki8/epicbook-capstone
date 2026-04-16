@@ -1,0 +1,23 @@
+---
+- name: Update apt cache
+  apt:
+    update_cache: yes
+  become: yes
+
+- name: Install curl and git
+  apt:
+    name:
+      - curl
+      - git
+    state: present
+  become: yes
+
+- name: Add NodeSource Node.js 18 repo
+  shell: curl -fsSL https://deb.nodesource.com/setup_18.x | bash -
+  become: yes
+
+- name: Install Node.js
+  apt:
+    name: nodejs
+    state: present
+  become: yes

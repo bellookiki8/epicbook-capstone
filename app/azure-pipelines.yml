@@ -1,0 +1,49 @@
+trigger:
+  branches:
+    include:
+      - main
+  paths:
+    include:
+      - ansible/**
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+stages:
+- stage: Ansible
+  displayName: 'Configure and Deploy EpicBook'
+  jobs:
+  - job: AnsibleDeploy
+    displayName: 'Run Ansible Playbook'
+    steps:
+
+    - task: DownloadSecureFile@1
+      name: sshPrivateKey
+      displayName: 'Download SSH Private Key'
+      inputs:
+        secureFile: 'id_rsa'
+
+    - script: |
+        mkdir -p ~/.ssh
+        cp $(sshPrivateKey.secureFilePath) ~/.ssh/id_rsa
+        chmod 600 ~/.ssh/id_rsa
+        ssh-keyscan -H 20.213.137.161 >> ~/.ssh/known_hosts
+        ssh-keyscan -H 20.213.33.210 >> ~/.ssh/known_hosts
+        echo "SSH key and known_hosts ready"
+      displayName: 'Configure SSH'
+
+    - script: |
+        sudo apt-get update -y
+        sudo apt-get install -y ansible
+        ansible --version
+      displayName: 'Install Ansible'
+
+    - script: |
+        cd $(System.DefaultWorkingDirectory)/ansible
+        ansible-playbook -i inventory/hosts.ini playbook.yml \
+          --private-key ~/.ssh/id_rsa \
+          -e "mysql_host=$(MYSQL_FQDN)" \
+          -e "mysql_user=$(MYSQL_USER)" \
+          -e "mysql_password=$(MYSQL_PASSWORD)" \
+          -e "mysql_database=$(MYSQL_DATABASE)"
+      displayName: 'Run Ansible Playbook'

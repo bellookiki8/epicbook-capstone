@@ -1,0 +1,15 @@
+---
+- name: Configure Frontend VM
+  hosts: frontend
+  become: yes
+  roles:
+    - common
+    - nginx
+    - epicbook
+
+- name: Configure Backend VM
+  hosts: backend
+  become: yes
+  roles:
+    - common
+    - epicbook
