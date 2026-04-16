@@ -5,21 +5,15 @@ trigger:
 
 variables:
   ACR_NAME: epicbookregistry.azurecr.io
-  APP_IMAGE: epicbookregistry.azurecr.io/epicbook-app
-  PROXY_IMAGE: epicbookregistry.azurecr.io/epicbook-proxy
   VM_USER: azureuser
   VM_HOST: 52.188.23.59
 
 stages:
 
-# =============================================================
-# Stage 1 — Build & Push images to ACR
-# =============================================================
 - stage: Build
   displayName: Build and push images
   jobs:
   - job: BuildImages
-    displayName: Build app and proxy images
     pool:
       vmImage: ubuntu-latest
     steps:
@@ -54,16 +48,12 @@ stages:
           $(Build.BuildId)
           latest
 
-# =============================================================
-# Stage 2 — Deploy to VM
-# =============================================================
 - stage: Deploy
   displayName: Deploy to Azure VM
   dependsOn: Build
   condition: succeeded()
   jobs:
   - job: DeployToVM
-    displayName: Pull and restart stack on VM
     pool:
       vmImage: ubuntu-latest
     steps:
@@ -76,8 +66,18 @@ stages:
         sshKeySecureFile: epicbook_key
 
     - script: |
-        chmod 600 $(Agent.HomeDirectory)/.ssh/epicbook_key
-        ssh -i $(Agent.HomeDirectory)/.ssh/epicbook_key \
+        echo "Looking for SSH key..."
+        find / -name "epicbook_key" 2>/dev/null
+        echo "HOME is: $HOME"
+        ls -la $HOME/.ssh/ 2>/dev/null || echo "No .ssh in HOME"
+        ls -la /home/vsts/.ssh/ 2>/dev/null || echo "No .ssh in /home/vsts"
+      displayName: Find SSH key location
+
+    - script: |
+        KEY=$(find / -name "epicbook_key" 2>/dev/null | head -1)
+        echo "Using key: $KEY"
+        chmod 600 "$KEY"
+        ssh -i "$KEY" \
             -o StrictHostKeyChecking=no \
             $(VM_USER)@$(VM_HOST) \
             "cd ~/epicbook-capstone && \
